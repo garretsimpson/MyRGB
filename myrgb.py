@@ -8,6 +8,8 @@ FREQ = 20  # Changes per second
 COLOR_CYCLE = 1 # number of color cycles
 COLOR_SPEED = 60  # degrees of hue per second
 
+PAUSE = 0.5  # Duration in seconds to wait for OpenRGB.  Seems to crash on some calls without it.
+
 BLACK = RGBColor(0, 0, 0)
 WHITE = RGBColor(255, 255, 255)
 RED = RGBColor(255, 0, 0)
@@ -16,9 +18,9 @@ BLUE = RGBColor(0, 0, 255)
 
 def main():
     client = OpenRGBClient()
-    client.update()
     printInfo(client.devices)
     client.clear()
+    time.sleep(PAUSE)
 
     # client.load_profile('basic.orp')
     # client.show()
@@ -26,28 +28,28 @@ def main():
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     ledStrip = mobo[0].zones[1]
     ledStrip.resize(42)
-    time.sleep(1)
+    time.sleep(PAUSE)
 
     runRainbow(client)
     # runRandom(client)
     # runRacer(client)
 
 def runRainbow(client):
+    for device in client.devices:
+        device.set_mode('Direct')
+
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     rams = client.get_devices_by_type(DeviceType.DRAM)
     gpus = client.get_devices_by_type(DeviceType.GPU)
     cpus = client.get_devices_by_type(DeviceType.COOLER)
 
+    cpus[0].zones[0].set_color(BLACK)  # Logo
+
 #    chase = cpus[0].modes[5]
 #    chase.speed = 1
 #    cpus[0].set_mode(chase)
-#    time.sleep(1)  # Seems to crash OpenRGB without this pause
-#    cpus[0].zones[0].set_color(BLACK)  # Logo
-#    cpus[0].zones[2].set_color(RGBColor(120, 120, 120))  # Ring
+#    time.sleep(PAUSE)
     
-    for device in mobo + rams + gpus:
-        device.set_mode('Direct')
-
     hue = 0
     running = True
     # startTime = time.time()
@@ -63,9 +65,12 @@ def runRainbow(client):
         oneColor(mbZone, hue + 235, 3, 4)
         mbZone.show()
 
-#        cpuFan = cpus[0].zones[1]
-#        oneColor(cpuFan, hue + 110, value = 75)
-#        cpuFan.show()
+        cpuFan = cpus[0].zones[1]
+        oneColor(cpuFan, hue + 110, value = 75)
+        cpuFan.show()
+        cpuRing = cpus[0].zones[2]
+        oneColor(cpuRing, hue + 110, value = 75)
+        cpuRing.show()
 
         ram0 = rams[0].zones[0]
         rainbow(ram0, hue + 80, hue - 5)
@@ -80,11 +85,12 @@ def runRainbow(client):
 
         time.sleep(1.0 / FREQ)
 
+        hue += COLOR_SPEED / FREQ
+        hue %= 360
+
         # if time.time() > endTime:
         #     running = False
 
-        hue += COLOR_SPEED / FREQ
-        hue %= 360
 
 def runRandom(client):
     for device in client.devices:
