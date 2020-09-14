@@ -4,11 +4,12 @@ from openrgb import OpenRGBClient
 from openrgb.utils import RGBColor, DeviceType
 
 DURATION = 300  # Total time in seconds
-FREQ = 60  # Changes per second
+MAX_FREQ = 30  # Changes per second
 COLOR_CYCLE = 1 # number of color cycles
 COLOR_SPEED = 30  # degrees of hue per second
 
-PAUSE = 1.0  # Duration in seconds to wait for OpenRGB.  Seems to crash on some calls without it.
+WAIT = 1.0  # Duration in seconds to wait for OpenRGB.  Seems to crash on some calls without it.
+PAUSE_DELTA = 0.015  # Increments of 15ms.
 
 BLACK = RGBColor(0, 0, 0)
 WHITE = RGBColor(255, 255, 255)
@@ -20,7 +21,7 @@ def main():
     client = OpenRGBClient()
     printInfo(client.devices)
     client.clear()
-    time.sleep(PAUSE)
+    time.sleep(WAIT)
 
     # client.load_profile('basic.orp')
     # client.show()
@@ -30,36 +31,21 @@ def main():
     ledStrip.resize(42)
     # time.sleep(PAUSE)
 
-    # runPerf()
     runRainbow(client)
     # runRandom(client)
     # runRacer(client)
 
-def runPerf():
-    frames = 0
-    fps = 1
-    startTime = time.time()
-    running = True
-    while running:
-        frames += 1
-        now = time.time()
-        if now > startTime + 1.0:
-            fps = frames / (now - startTime)
-            print('FPS: {:.4}, time: {:.2}ms'.format(fps, 1000 / fps))
-            startTime = now
-            frames = 0
-
 def runRainbow(client):
     for device in client.devices:
         device.set_mode('Direct')
-    time.sleep(PAUSE)
+    time.sleep(WAIT)
 
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     rams = client.get_devices_by_type(DeviceType.DRAM)
     gpus = client.get_devices_by_type(DeviceType.GPU)
     cpus = client.get_devices_by_type(DeviceType.COOLER)
 
-    cpus[0].zones[0].set_color(BLACK)  # Logo
+    gpus[0].set_color(WHITE)
 
 #    chase = cpus[0].modes[5]
 #    chase.speed = 1
@@ -69,8 +55,8 @@ def runRainbow(client):
     hue = 0
     startTime = time.time()
     frames = 0
-    fps = FREQ
-    # endTime = startTime + DURATION
+    fps = MAX_FREQ
+    pause = 0.0
     running = True
     while running:
         ledStrip = mobo[0].zones[1]
@@ -80,31 +66,15 @@ def runRainbow(client):
 
         mbZone = mobo[0].zones[2]
         oneColor(mbZone, hue + 140, 0, 1)
-        oneColor(mbZone, hue + 235, 3, 4)
         mbZone.show()
 
-        cpuFan = cpus[0].zones[1]
-        oneColor(cpuFan, hue + 110, value = 75)
-        cpuFan.show()
-        cpuRing = cpus[0].zones[2]
-        oneColor(cpuRing, hue + 110, value = 75)
-        cpuRing.show()
+        oneColor(cpus[0], hue + 110, 1, 3, value = 75)
+        cpus[0].show()
 
-        ram0 = rams[0].zones[0]
-        rainbow(ram0, hue + 80, hue - 5)
-        ram0.show()
-        ram1 = rams[1].zones[0]
-        rainbow(ram1, hue + 75, hue - 10)
-        ram1.show()
-
-        gpuLed = gpus[0].zones[0]
-        oneColor(gpuLed, hue + 270)
-        gpuLed.show()
-
-        # time.sleep(1.0 / FREQ)
-
-        hue += COLOR_SPEED / fps
-        hue %= 360
+        rainbow(rams[0], hue + 80, hue - 5)
+        rams[0].show()
+        rainbow(rams[1], hue + 75, hue - 10)
+        rams[1].show()
 
         frames += 1
         now = time.time()
@@ -113,9 +83,14 @@ def runRainbow(client):
             print('FPS: {:.4}, time: {:.4}ms'.format(fps, 1000 / fps))
             startTime = now
             frames = 0
+            diff = (1.0 / MAX_FREQ) - (1.0 / fps)
+            if (fps > MAX_FREQ) and (diff > PAUSE_DELTA):
+                pause += PAUSE_DELTA
 
-        # if time.time() > endTime:
-        #     running = False
+        time.sleep(pause)
+
+        hue += COLOR_SPEED / fps
+        hue %= 360
 
 def runRandom(client):
     for device in client.devices:
@@ -128,7 +103,7 @@ def runRandom(client):
         randomColor(device)
         device.show()
 
-        time.sleep(1.0 / FREQ)
+        time.sleep(1.0 / MAX_FREQ)
 
 def runRacer(client):
     # FREQ = 50
@@ -146,11 +121,11 @@ def runRacer(client):
     running = True
     while running:
         paintPos(ledStrip, pos, WHITE)
-        pos += SPEED / FREQ
+        pos += SPEED / MAX_FREQ
         pos %= 360
         paintPos(ledStrip, pos, RED)
         ledStrip.show()
-        time.sleep(1.0 / FREQ)
+        time.sleep(1.0 / MAX_FREQ)
 
 def printInfo(devices):
     for device in devices:
