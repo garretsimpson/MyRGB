@@ -4,11 +4,11 @@ from openrgb import OpenRGBClient
 from openrgb.utils import RGBColor, DeviceType
 
 DURATION = 300  # Total time in seconds
-FREQ = 20  # Changes per second
+FREQ = 60  # Changes per second
 COLOR_CYCLE = 1 # number of color cycles
-COLOR_SPEED = 60  # degrees of hue per second
+COLOR_SPEED = 30  # degrees of hue per second
 
-PAUSE = 0.5  # Duration in seconds to wait for OpenRGB.  Seems to crash on some calls without it.
+PAUSE = 1.0  # Duration in seconds to wait for OpenRGB.  Seems to crash on some calls without it.
 
 BLACK = RGBColor(0, 0, 0)
 WHITE = RGBColor(255, 255, 255)
@@ -28,15 +28,31 @@ def main():
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     ledStrip = mobo[0].zones[1]
     ledStrip.resize(42)
-    time.sleep(PAUSE)
+    # time.sleep(PAUSE)
 
+    # runPerf()
     runRainbow(client)
     # runRandom(client)
     # runRacer(client)
 
+def runPerf():
+    frames = 0
+    fps = 1
+    startTime = time.time()
+    running = True
+    while running:
+        frames += 1
+        now = time.time()
+        if now > startTime + 1.0:
+            fps = frames / (now - startTime)
+            print('FPS: {:.4}, time: {:.2}ms'.format(fps, 1000 / fps))
+            startTime = now
+            frames = 0
+
 def runRainbow(client):
     for device in client.devices:
         device.set_mode('Direct')
+    time.sleep(PAUSE)
 
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     rams = client.get_devices_by_type(DeviceType.DRAM)
@@ -51,9 +67,11 @@ def runRainbow(client):
 #    time.sleep(PAUSE)
     
     hue = 0
-    running = True
-    # startTime = time.time()
+    startTime = time.time()
+    frames = 0
+    fps = FREQ
     # endTime = startTime + DURATION
+    running = True
     while running:
         ledStrip = mobo[0].zones[1]
         rainbow(ledStrip, hue, hue + 135, 0, 21, value = 20)
@@ -83,14 +101,21 @@ def runRainbow(client):
         oneColor(gpuLed, hue + 270)
         gpuLed.show()
 
-        time.sleep(1.0 / FREQ)
+        # time.sleep(1.0 / FREQ)
 
-        hue += COLOR_SPEED / FREQ
+        hue += COLOR_SPEED / fps
         hue %= 360
+
+        frames += 1
+        now = time.time()
+        if now > startTime + 1.0:
+            fps = frames / (now - startTime)
+            print('FPS: {:.4}, time: {:.4}ms'.format(fps, 1000 / fps))
+            startTime = now
+            frames = 0
 
         # if time.time() > endTime:
         #     running = False
-
 
 def runRandom(client):
     for device in client.devices:
