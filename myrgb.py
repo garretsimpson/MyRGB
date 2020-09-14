@@ -3,12 +3,11 @@ import random
 from openrgb import OpenRGBClient
 from openrgb.utils import RGBColor, DeviceType
 
-DURATION = 300  # Total time in seconds
 MAX_FREQ = 30  # Changes per second
-COLOR_CYCLE = 1 # number of color cycles
-COLOR_SPEED = 30  # degrees of hue per second
+COLOR_CYCLE = 1 # number of color cycles (positive, can be less than 1)
+COLOR_SPEED = -30  # degrees of hue per second (positive or negative)
 
-WAIT = 1.0  # Duration in seconds to wait for OpenRGB.  Seems to crash on some calls without it.
+WAIT = 1.0  # Duration in seconds to wait for OpenRGB.  OpenRGB crashes on some calls without it.
 PAUSE_DELTA = 0.015  # Increments of 15ms.
 
 BLACK = RGBColor(0, 0, 0)
@@ -84,13 +83,13 @@ def runRainbow(client):
             startTime = now
             frames = 0
             diff = (1.0 / MAX_FREQ) - (1.0 / fps)
-            if (fps > MAX_FREQ) and (diff > PAUSE_DELTA):
+            if (diff > PAUSE_DELTA):
                 pause += PAUSE_DELTA
 
         time.sleep(pause)
 
         hue += COLOR_SPEED / fps
-        hue %= 360
+        hue %= 360 / COLOR_CYCLE
 
 def runRandom(client):
     for device in client.devices:
@@ -106,7 +105,6 @@ def runRandom(client):
         time.sleep(1.0 / MAX_FREQ)
 
 def runRacer(client):
-    # FREQ = 50
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
 
     for device in mobo:
@@ -140,8 +138,7 @@ def oneColor(obj, color, startLed = 0, endLed = None, value = 100):
         endLed = len(obj.leds)
     for i in range(startLed, endLed):
         if isinstance(color, (int, float)):
-            color *= COLOR_CYCLE
-            obj.colors[i] = RGBColor.fromHSV(color, 100, value)
+            obj.colors[i] = RGBColor.fromHSV(color * COLOR_CYCLE, 100, value)
         elif isinstance(color, RGBColor):
             obj.colors[i] = color
 
@@ -153,8 +150,7 @@ def rainbow(obj, startHue, endHue, startLed = 0, endLed = None, value = 100):
     numLed = endLed - startLed
     for i in range(startLed, endLed):
         hue = (endHue - startHue) * ((i - startLed) / numLed) + startHue
-        hue *= COLOR_CYCLE
-        obj.colors[i] = RGBColor.fromHSV(hue, 100, value)
+        obj.colors[i] = RGBColor.fromHSV(hue * COLOR_CYCLE, 100, value)
 
 def randomColor(obj):
     hue = random.randrange(360)
