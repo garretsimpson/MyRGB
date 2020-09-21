@@ -1,4 +1,5 @@
 import time
+import math
 import random
 from openrgb import OpenRGBClient
 from openrgb.utils import RGBColor, DeviceType
@@ -19,6 +20,10 @@ BLUE = RGBColor(0, 0, 255)
 def main():
     client = OpenRGBClient()
     printInfo(client.devices)
+
+    for device in client.devices:
+       device.set_mode('Direct')
+    # time.sleep(WAIT)
     client.clear()
     time.sleep(WAIT)
 
@@ -28,21 +33,29 @@ def main():
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     ledStrip = mobo[0].zones[1]
     ledStrip.resize(42)
-    # time.sleep(PAUSE)
 
-    runRainbow(client)
     # runRandom(client)
+    runRainbow(client)
     # runRacer(client)
+    # runBreathing(client)
+
+def runRandom(client):
+    numDevices = len(client.devices)
+    running = True
+    while running:
+        device = client.devices[random.randrange(numDevices)]
+        randomColor(device)
+        device.show()
+
+        time.sleep(1.0 / MAX_FREQ)
 
 def runRainbow(client):
-    for device in client.devices:
-        device.set_mode('Direct')
-    time.sleep(WAIT)
-
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     rams = client.get_devices_by_type(DeviceType.DRAM)
     gpus = client.get_devices_by_type(DeviceType.GPU)
     cpus = client.get_devices_by_type(DeviceType.COOLER)
+    ledStrip = mobo[0].zones[1]
+    mbZone = mobo[0].zones[2]
 
     gpus[0].set_color(WHITE)
 
@@ -58,12 +71,10 @@ def runRainbow(client):
     pause = 0.0
     running = True
     while running:
-        ledStrip = mobo[0].zones[1]
         rainbow(ledStrip, hue, hue + 135, 0, 21, value = 20)
         rainbow(ledStrip, hue + 180, hue + 315, 21, 42, value = 20)
         ledStrip.show()
 
-        mbZone = mobo[0].zones[2]
         oneColor(mbZone, hue + 140, 0, 1)
         mbZone.show()
 
@@ -91,26 +102,10 @@ def runRainbow(client):
         hue += COLOR_SPEED / fps
         hue %= 360 / COLOR_CYCLE
 
-def runRandom(client):
-    for device in client.devices:
-        device.set_mode('Direct')
-
-    numDevices = len(client.devices)
-    running = True
-    while running:
-        device = client.devices[random.randrange(numDevices)]
-        randomColor(device)
-        device.show()
-
-        time.sleep(1.0 / MAX_FREQ)
-
 def runRacer(client):
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
-
-    for device in mobo:
-        device.set_mode('Direct')
-
     ledStrip = mobo[0].zones[1]
+
     oneColor(ledStrip, WHITE)
     ledStrip.show()
 
@@ -124,6 +119,50 @@ def runRacer(client):
         paintPos(ledStrip, pos, RED)
         ledStrip.show()
         time.sleep(1.0 / MAX_FREQ)
+
+MIN_SAT = 80
+MAX_SAT = 100
+def runBreathing(client):
+    mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
+    cpus = client.get_devices_by_type(DeviceType.COOLER)
+    rams = client.get_devices_by_type(DeviceType.DRAM)
+    gpus = client.get_devices_by_type(DeviceType.GPU)
+    ledStrip = mobo[0].zones[1]
+
+    # Pick a color
+    hue = random.randrange(360)
+    sat = random.randrange(MAX_SAT - MIN_SAT) + MIN_SAT
+
+    pos = 0
+    fps = 5
+    running = True
+    while running:
+        value = 50 * (math.sin(pos) + 1)
+        color = RGBColor.fromHSV(hue, sat, value)
+        color20 = RGBColor.fromHSV(hue, sat, 0.2 * value)
+        color180 = RGBColor.fromHSV(hue + 180, sat, value)
+
+        oneColor(ledStrip, color20)
+        ledStrip.show()
+
+        oneColor(cpus[0], color, 1, 3)
+        cpus[0].show()
+
+        oneColor(rams[0], color)
+        rams[0].show()
+        oneColor(rams[1], color)
+        rams[1].show()
+
+        oneColor(gpus[0], color180)
+        gpus[0].show()
+
+        pos += COLOR_SPEED * (math.pi / 360) / fps
+        time.sleep(1.0 / MAX_FREQ)
+
+        # Pick a new color
+        if (value < 0.1):
+            hue = random.randrange(360)
+            sat = random.randrange(MAX_SAT - MIN_SAT) + MIN_SAT
 
 def printInfo(devices):
     for device in devices:
@@ -150,6 +189,7 @@ def rainbow(obj, startHue, endHue, startLed = 0, endLed = None, value = 100):
     numLed = endLed - startLed
     for i in range(startLed, endLed):
         hue = (endHue - startHue) * ((i - startLed) / numLed) + startHue
+        # hue -= hue % 30
         obj.colors[i] = RGBColor.fromHSV(hue * COLOR_CYCLE, 100, value)
 
 def randomColor(obj):
