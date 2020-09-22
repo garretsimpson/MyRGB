@@ -6,7 +6,7 @@ from openrgb.utils import RGBColor, DeviceType
 
 MAX_FPS = 30  # Maximium changes per second
 COLOR_CYCLE = 1 # number of color cycles (positive, can be less than 1)
-COLOR_SPEED = -30  # degrees of hue per second (positive or negative)
+COLOR_SPEED = 30  # degrees of hue per second (positive or negative)
 BREATH_SPEED = math.pi / 3  # radians per second
 
 WAIT = 1.0  # Duration in seconds to wait for OpenRGB.  OpenRGB crashes on some calls without it.
@@ -37,8 +37,8 @@ def main():
     ledStrip.resize(42)
 
     # runRandom(client)
-    runRainbow(client)
-    # runBreathing(client)
+    # runRainbow(client)
+    runBreathing(client)
     # runClock(client)
 
 def printInfo(devices):
@@ -201,20 +201,17 @@ def drawOneColor(obj, color, startLed = 0, endLed = None):
 
 # Compute breath value 0..100
 # Cycles at BREATH_SPEED (radians per second)
-#  pos  0.0  0.5  1.0  1.5  (time in pi seconds)
-#    0    0  100  100  100
+#  pos  1.0  1.5  0.0  0.5 (time in pi radians)
+#    0    0  100  100  100  
 #   50    0   50  100   50
 #  100    0    0  100    0
 # t: time in seconds
 # pos[0]: position offset 0..100
 def breathValue(t, pos):
     a = (BREATH_SPEED * t) % (2.0 * math.pi)
-    x = 100.0 * math.cos(a) - 100 + pos[0]
-    value = 0.0
-    if x <= -100:
-        value = 100.0
-    elif x <= 0:
-        value = -x
+    value = 100.0 * math.cos(a) + 100 - pos[0]
+    value = max(0.0, value)
+    value = min(value, 100.0)
     return value
 
 # Return breath color
