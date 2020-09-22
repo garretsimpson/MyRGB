@@ -35,9 +35,9 @@ def main():
     ledStrip.resize(42)
 
     # runRandom(client)
-    # runRainbow(client)
+    runRainbow(client)
     # runRacer(client)
-    runBreathing(client)
+    # runBreathing(client)
 
 def runRandom(client):
     numDevices = len(client.devices)
@@ -120,10 +120,11 @@ def runRacer(client):
         ledStrip.show()
         time.sleep(1.0 / MAX_FREQ)
 
-MIN_SAT = 80
-MAX_SAT = 100
-COLORS_LEN = 100
 def runBreathing(client):
+    MIN_SAT = 80
+    MAX_SAT = 100
+    COLORS_LEN = 100
+    
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     cpus = client.get_devices_by_type(DeviceType.COOLER)
     rams = client.get_devices_by_type(DeviceType.DRAM)
@@ -182,20 +183,25 @@ def printInfo(devices):
 def oneColor(obj, color, startLed = 0, endLed = None, value = 100):
     if endLed == None:
         endLed = len(obj.leds)
+    value = min(value, 100)
     for i in range(startLed, endLed):
         if isinstance(color, (int, float)):
-            obj.colors[i] = RGBColor.fromHSV(color * COLOR_CYCLE, 100, value)
+            result = RGBColor.fromHSV(color * COLOR_CYCLE, 100, value)
         elif isinstance(color, RGBColor):
-            obj.colors[i] = RGBColor(
-                int(color.red * value / 100),
-                int(color.green * value / 100),
-                int(color.blue * value / 100))
+            # TODO: Should use hsv functions to adjust the value
+            scale = value / 100.0
+            result = RGBColor(
+                int(color.red * scale),
+                int(color.green * scale),
+                int(color.blue * scale))
+        obj.colors[i] = result
 
 # startLed: inclusive
 # endLed: exclusive
 def rainbow(obj, startHue, endHue, startLed = 0, endLed = None, value = 100):
     if endLed == None:
         endLed = len(obj.leds)
+    value = min(value, 100)
     numLed = endLed - startLed
     for i in range(startLed, endLed):
         hue = (endHue - startHue) * ((i - startLed) / numLed) + startHue
