@@ -35,9 +35,9 @@ def main():
     ledStrip.resize(42)
 
     # runRandom(client)
-    runRainbow(client)
+    # runRainbow(client)
     # runRacer(client)
-    # runBreathing(client)
+    runBreathing(client)
 
 def runRandom(client):
     numDevices = len(client.devices)
@@ -122,6 +122,7 @@ def runRacer(client):
 
 MIN_SAT = 80
 MAX_SAT = 100
+COLORS_LEN = 100
 def runBreathing(client):
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     cpus = client.get_devices_by_type(DeviceType.COOLER)
@@ -133,36 +134,42 @@ def runBreathing(client):
     hue = random.randrange(360)
     sat = random.randrange(MAX_SAT - MIN_SAT) + MIN_SAT
 
-    pos = 0
+    i = 0
     fps = 5
+    pos = math.pi
+    colors = [BLACK] * COLORS_LEN
     running = True
     while running:
-        value = 50 * (math.sin(pos) + 1)
-        color = RGBColor.fromHSV(hue, sat, value)
-        color20 = RGBColor.fromHSV(hue, sat, 0.2 * value)
-        color180 = RGBColor.fromHSV(hue + 180, sat, value)
+        value = 50 * (math.cos(pos) + 1)
+        colors[i] = RGBColor.fromHSV(hue, sat, value)
 
-        oneColor(ledStrip, color20)
-        ledStrip.show()
-
-        oneColor(cpus[0], color, 1, 3)
+        oneColor(cpus[0], colors[i], 1, 2)
+        oneColor(cpus[0], colors[i-10], 2, 3)
         cpus[0].show()
 
-        oneColor(rams[0], color)
+        oneColor(rams[0], colors[i-10])
         rams[0].show()
-        oneColor(rams[1], color)
+        oneColor(rams[1], colors[i-15])
         rams[1].show()
 
-        oneColor(gpus[0], color180)
+        oneColor(gpus[0], colors[i-15])
         gpus[0].show()
 
-        pos += COLOR_SPEED * (math.pi / 360) / fps
+        oneColor(ledStrip, colors[i-20], 0, 21, value = 20)
+        oneColor(ledStrip, colors[i-25], 21, 42, value = 20)
+        ledStrip.show()
+
         time.sleep(1.0 / MAX_FREQ)
 
         # Pick a new color
-        if (value < 0.1):
+        if (value < 0.01):
             hue = random.randrange(360)
             sat = random.randrange(MAX_SAT - MIN_SAT) + MIN_SAT
+
+        i = (i+1) % COLORS_LEN
+
+        pos += COLOR_SPEED * (math.pi / 360) / fps
+        pos %= 2 * math.pi
 
 def printInfo(devices):
     for device in devices:
@@ -179,7 +186,10 @@ def oneColor(obj, color, startLed = 0, endLed = None, value = 100):
         if isinstance(color, (int, float)):
             obj.colors[i] = RGBColor.fromHSV(color * COLOR_CYCLE, 100, value)
         elif isinstance(color, RGBColor):
-            obj.colors[i] = color
+            obj.colors[i] = RGBColor(
+                int(color.red * value / 100),
+                int(color.green * value / 100),
+                int(color.blue * value / 100))
 
 # startLed: inclusive
 # endLed: exclusive
