@@ -140,9 +140,6 @@ def runClock(client):
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     ledStrip = mobo[0].zones[1]
 
-    for pos in range(0, 360, 6):
-        print('{} {}'.format(pos, mapPosToLed(pos)))
-
     running = True
     while running:
         t = time.localtime(time.time())
@@ -151,13 +148,14 @@ def runClock(client):
         second = t[5]
         if hour > 12:
             hour -= 12
-        drawOneColor(ledStrip, CYAN)
+        BG_COLOR = RGBColor(0, 0, 60)
+        drawOneColor(ledStrip, BG_COLOR)
         drawPos(ledStrip, 90 - 30 * hour, MAGENTA)
         drawPos(ledStrip, 90 - 6 * minute, YELLOW)
-        drawPos(ledStrip, 90 - 6 * second, WHITE)
+        drawPos(ledStrip, 90 - 6 * second, CYAN)
         ledStrip.show()
         
-        limitFPS(2)
+        limitFPS(5)
 
 # Returns a random color.
 # Does not depend on time or position
