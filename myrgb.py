@@ -1,3 +1,13 @@
+'''
+MyRBG - Prototype RGB scripts.
+
+Project: https://gitlab.com/FatCatX/myrgb
+
+Uses
+- OpenRGB server: https://gitlab.com/CalcProgrammer1/OpenRGB
+- OpenRGB python: https://github.com/jath03/openrgb-python
+'''
+
 import time
 import math
 import random
@@ -209,10 +219,10 @@ def drawOneColor(obj, color, startLed = 0, endLed = None):
 
 # Compute breath value 0..100
 # Cycles at BREATH_SPEED (radians per second)
-#  pos  1.0  1.5  0.0  0.5 (time in pi radians)
-#    0    0  100  100  100  
-#   50    0   50  100   50
-#  100    0    0  100    0
+#  pos  1.0  1.5  0.0  0.5  1.0 (time in pi radians)
+#    0    0  100  100  100    0
+#   50    0   50  100   50    0
+#  100    0    0  100    0    0
 # t: time in seconds
 # pos[0]: position offset 0..100
 def breathValue(t, pos):
