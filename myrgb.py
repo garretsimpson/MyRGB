@@ -13,11 +13,13 @@ WAIT = 1.0  # Duration in seconds to wait for OpenRGB.  OpenRGB crashes on some 
 PAUSE_DELTA = 0.015  # Increments of 15ms.
 
 BLACK = RGBColor(0, 0, 0)
-WHITE = RGBColor(255, 255, 255)
 RED = RGBColor(255, 0, 0)
 GREEN = RGBColor(0, 255, 0)
 BLUE = RGBColor(0, 0, 255)
 YELLOW = RGBColor(255, 255, 0)
+CYAN = RGBColor(0, 255, 255)
+MAGENTA = RGBColor(255, 0, 255)
+WHITE = RGBColor(255, 255, 255)
 
 def main():
     client = OpenRGBClient()
@@ -38,8 +40,8 @@ def main():
 
     # runRandom(client)
     # runRainbow(client)
-    runBreathing(client)
-    # runClock(client)
+    # runBreathing(client)
+    runClock(client)
 
 def printInfo(devices):
     for device in devices:
@@ -96,11 +98,8 @@ def runRainbow(client):
         limitFPS()
 
 def runBreathing(client):
-    # Pick a color
-    MIN_SAT = 80
+    MIN_SAT = 50
     MAX_SAT = 100
-    hue = random.randrange(360)
-    sat = random.randrange(MAX_SAT - MIN_SAT) + MIN_SAT
 
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     cpus = client.get_devices_by_type(DeviceType.COOLER)
@@ -108,29 +107,30 @@ def runBreathing(client):
     gpus = client.get_devices_by_type(DeviceType.GPU)
     ledStrip = mobo[0].zones[1]
 
+    hue = None
     running = True
     while running:
         t = time.time()
 
         # Pick a new color
         val = breathValue(t, [0])
-        if (val < 0.01):
+        if (hue == None) or (val < 0.01):
             hue = random.randrange(360)
             sat = random.randrange(MAX_SAT - MIN_SAT) + MIN_SAT
 
         drawOneColor(cpus[0], breathColor(t, [0], hue, sat), 1, 2)
-        drawOneColor(cpus[0], breathColor(t, [20], hue, sat), 2, 3)
+        drawOneColor(cpus[0], breathColor(t, [50], hue, sat), 2, 3)
         cpus[0].show()
 
-        drawOneColor(rams[0], breathColor(t, [30], hue, sat))
+        drawOneColor(rams[0], breathColor(t, [60], hue, sat))
         rams[0].show()
-        drawOneColor(rams[1], breathColor(t, [40], hue, sat))
+        drawOneColor(rams[1], breathColor(t, [70], hue, sat))
         rams[1].show()
 
-        drawOneColor(gpus[0], breathColor(t, [50], hue, sat))
+        drawOneColor(gpus[0], breathColor(t, [80], hue, sat))
         gpus[0].show()
 
-        drawOneColor(ledStrip, breathColor(t, [60], hue, sat, 0.2), 0, 21)
+        drawOneColor(ledStrip, breathColor(t, [90], hue, sat, 0.2), 0, 21)
         drawOneColor(ledStrip, breathColor(t, [100], hue, sat, 0.2), 21, 42)
         ledStrip.show()
 
@@ -140,21 +140,24 @@ def runClock(client):
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     ledStrip = mobo[0].zones[1]
 
-    drawOneColor(ledStrip, BLUE)
-    ledStrip.show()
+    for pos in range(0, 360, 6):
+        print('{} {}'.format(pos, mapPosToLed(pos)))
 
     running = True
-    prevPos = 0
     while running:
-        t = time.time()
-        currPos = -6 * (t - 16 % 60.0) 
-        drawPos(ledStrip, prevPos, BLUE)
-        drawPos(ledStrip, currPos, YELLOW)
+        t = time.localtime(time.time())
+        hour = t[3]
+        minute = t[4]
+        second = t[5]
+        if hour > 12:
+            hour -= 12
+        drawOneColor(ledStrip, CYAN)
+        drawPos(ledStrip, 90 - 30 * hour, MAGENTA)
+        drawPos(ledStrip, 90 - 6 * minute, YELLOW)
+        drawPos(ledStrip, 90 - 6 * second, WHITE)
         ledStrip.show()
         
-        prevPos = currPos
-
-        limitFPS()
+        limitFPS(2)
 
 # Returns a random color.
 # Does not depend on time or position
@@ -164,13 +167,20 @@ def randomColor():
     val = random.randrange(100)
     return RGBColor.fromHSV(hue, sat, val)
 
-# Return rainbow color.
+# Return rainbow hue
 # Colors change at COLOR_SPEED (degrees hue per second), offset by the position.
+# t: time in seconds.
+# pos[0]: color offset in degrees 0..360
+def rainbowHue(t, pos):
+    hue = ((t * COLOR_SPEED) + (pos[0] * COLOR_CYCLE)) % 360
+    return hue    
+
+# Return rainbow color.
 # t: time in seconds.
 # pos[0]: color offset in degrees 0..360
 # value: value component of an hsv color
 def rainbowColor(t, pos, value = 100):
-    hue = ((t * COLOR_SPEED) + (pos[0] * COLOR_CYCLE)) % 360
+    hue = rainbowHue(t, pos)
     sat = 100
     val = min(value, 100)
     return RGBColor.fromHSV(hue, sat, val)
@@ -230,18 +240,18 @@ def drawPos(obj, pos, color):
 def mapPosToLed(pos):
     pos %= 360
     num = None
-    if pos < 135:
-        num = int(21 * (pos / 135.0))
-    elif (pos >= 180) and (pos < 315):
-        num = 21 + int(21 * ((pos - 180) / 135.0))
+    if pos <= 120:
+        num = int(pos / 6)
+    elif (pos >= 180) and (pos <= 300):
+        num = int(pos / 6) - 9
     return num
 
-pause = PAUSE_DELTA  # start with some delay
 frames = 0
 startTime = None
-# Limit frame rate to about MAX_FPS
+pause = PAUSE_DELTA  # start with some delay
+# Limit frame rate to about maxFPS
 # TODO: Refactor this as a class
-def limitFPS():
+def limitFPS(maxFPS = MAX_FPS):
     global pause
     global frames
     global startTime
@@ -256,7 +266,7 @@ def limitFPS():
         print('FPS: {:.4}, time: {:.4}ms'.format(fps, 1000 / fps))
         startTime = now
         frames = 0
-        diff = (1.0 / MAX_FPS) - (1.0 / fps)
+        diff = (1.0 / maxFPS) - (1.0 / fps)
         if (diff > PAUSE_DELTA):
             pause += PAUSE_DELTA
     if pause > 0:
