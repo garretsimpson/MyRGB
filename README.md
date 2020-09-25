@@ -39,7 +39,7 @@ Project: https://gitlab.com/FatCatX/myrgb
 - Rainbow - Rotating rainbow colors coordinated on all devices.
 - Breathing - Breathing effect coordinated on all devices.
 - Clock - Display hour, minute, second on the LED strip.
-- Spots - 30 racing spots on the LED strip.  Each spot is a different color, size, and speed.
+- Spots - Racing spots on the LED strip.  Each spot is a different color, size, and speed.
 
 ## Notes
 

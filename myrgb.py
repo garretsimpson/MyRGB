@@ -169,13 +169,15 @@ def runClock(client):
         
         limitFPS(5)
 
-NUM_SPOTS = 15
+NUM_SPOTS = 16
 MIN_SPOT_SIZE = 1
-MAX_SPOT_SIZE = 32
-MIN_SPOT_SPEED = -150
-MAX_SPOT_SPEED = 150
+MAX_SPOT_SIZE = 25
+MIN_SPOT_SPEED = -120
+MAX_SPOT_SPEED = 120
 def runSpots(client):
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
+    cpus = client.get_devices_by_type(DeviceType.COOLER)
+    rams = client.get_devices_by_type(DeviceType.DRAM)
     ledStrip = mobo[0].zones[1]
 
     spots = [()] * NUM_SPOTS
@@ -184,7 +186,7 @@ def runSpots(client):
         hue = 360 * (i / NUM_SPOTS)
         speed = random.uniform(MIN_SPOT_SPEED, MAX_SPOT_SPEED)
         spots[i] = (size, hue, speed)
-    print(spots)
+
     running = True
     while running:
         t = time.time()
@@ -199,7 +201,16 @@ def runSpots(client):
             pos = (speed * t) % 360
             drawSpot(ledStrip, pos, hue, sat, val, size = size)
         ledStrip.show()
+
+        drawOneColor(cpus[0], ledStrip.colors[17], 1, 3)
+        cpus[0].show()
         
+        for i in range(len(rams[0].colors)):
+            rams[0].colors[i] = ledStrip.colors[12 - i]
+            rams[1].colors[i] = ledStrip.colors[11 - i]
+        rams[0].show()
+        rams[1].show()
+
         limitFPS()
 
 # Returns a random color.
@@ -308,9 +319,15 @@ def drawSpot(obj, pos, hue, sat, val, size = 6):
         scale = len / 6
         i = mapVLedToLed(vLed)
         if i != None:
-            obj.colors[i] = RGBColor.fromHSV(hue, sat, val * scale)
+            obj.colors[i] = addColors(obj.colors[i], RGBColor.fromHSV(hue, sat, val * scale))
         pos = (pos + len) % 360
         size -= len
+
+def addColors(color1, color2):
+    red = min(color1.red + color2.red, 255)
+    green = min(color1.green + color2.green, 255)
+    blue = min(color1.blue + color2.blue, 255)
+    return RGBColor(red, green, blue)    
 
 frames = 0
 startTime = None
