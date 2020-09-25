@@ -169,7 +169,7 @@ def runClock(client):
         
         limitFPS(5)
 
-NUM_SPOTS = 16
+NUM_SPOTS = 15
 MIN_SPOT_SIZE = 1
 MAX_SPOT_SIZE = 25
 MIN_SPOT_SPEED = -120
@@ -202,7 +202,8 @@ def runSpots(client):
             drawSpot(ledStrip, pos, hue, sat, val, size = size)
         ledStrip.show()
 
-        drawOneColor(cpus[0], ledStrip.colors[17], 1, 3)
+        # drawOneColor(cpus[0], ledStrip.colors[17], 1, 3)
+        drawOneColor(cpus[0], blendColors(ledStrip, 15, 19), 1, 3)
         cpus[0].show()
         
         for i in range(len(rams[0].colors)):
@@ -327,7 +328,21 @@ def addColors(color1, color2):
     red = min(color1.red + color2.red, 255)
     green = min(color1.green + color2.green, 255)
     blue = min(color1.blue + color2.blue, 255)
-    return RGBColor(red, green, blue)    
+    return RGBColor(red, green, blue)
+
+# startLed, endLed: inclusive
+def blendColors(obj, startLed, endLed):
+    endLed += 1
+    red, green, blue = 0, 0, 0
+    for i in range(startLed, endLed):
+        red += obj.colors[i].red
+        green += obj.colors[i].green
+        blue += obj.colors[i].blue
+    len = abs(endLed - startLed)
+    red = min(int(red / len), 255)
+    green = min(int(green / len), 255)
+    blue = min(int(blue / len), 255)
+    return RGBColor(red, green, blue)
 
 frames = 0
 startTime = None
