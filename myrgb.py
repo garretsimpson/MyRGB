@@ -51,7 +51,8 @@ def main():
     # runRandom(client)
     # runRainbow(client)
     # runBreathing(client)
-    runClock(client)
+    # runClock(client)
+    runSpots(client)
 
 def printInfo(devices):
     for device in devices:
@@ -125,8 +126,8 @@ def runBreathing(client):
         # Pick a new color
         val = breathValue(t, [0])
         if (hue == None) or (val < 0.01):
-            hue = random.randrange(360)
-            sat = random.randrange(MAX_SAT - MIN_SAT) + MIN_SAT
+            hue = 360 * random.random()
+            sat = random.uniform(MIN_SAT, MAX_SAT)
 
         drawOneColor(cpus[0], breathColor(t, [0], hue, sat), 1, 2)
         drawOneColor(cpus[0], breathColor(t, [50], hue, sat), 2, 3)
@@ -142,6 +143,7 @@ def runBreathing(client):
 
         drawOneColor(ledStrip, breathColor(t, [90], hue, sat, 0.2), 0, 21)
         drawOneColor(ledStrip, breathColor(t, [100], hue, sat, 0.2), 21, 42)
+        # drawOneColor(ledStrip, breathColor(t, [180], hue, sat), 21, 42)
         ledStrip.show()
 
         limitFPS()
@@ -167,12 +169,45 @@ def runClock(client):
         
         limitFPS(5)
 
+NUM_SPOTS = 15
+MIN_SPOT_SIZE = 1
+MAX_SPOT_SIZE = 32
+MIN_SPOT_SPEED = -150
+MAX_SPOT_SPEED = 150
+def runSpots(client):
+    mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
+    ledStrip = mobo[0].zones[1]
+
+    spots = [()] * NUM_SPOTS
+    for i in range(NUM_SPOTS):
+        size = random.uniform(MIN_SPOT_SIZE, MAX_SPOT_SIZE)
+        hue = 360 * (i / NUM_SPOTS)
+        speed = random.uniform(MIN_SPOT_SPEED, MAX_SPOT_SPEED)
+        spots[i] = (size, hue, speed)
+    print(spots)
+    running = True
+    while running:
+        t = time.time()
+        
+        drawOneColor(ledStrip, BLACK)
+        for i in range(NUM_SPOTS):
+            size = spots[i][0]
+            hue = spots[i][1]
+            sat = 100
+            val = 50
+            speed = spots[i][2]
+            pos = (speed * t) % 360
+            drawSpot(ledStrip, pos, hue, sat, val, size = size)
+        ledStrip.show()
+        
+        limitFPS()
+
 # Returns a random color.
 # Does not depend on time or position
 def randomColor():
-    hue = random.randrange(360)
+    hue = 360 * random.random()
     sat = 100
-    val = random.randrange(100)
+    val = 100 * random.random()
     return RGBColor.fromHSV(hue, sat, val)
 
 # Return rainbow hue
@@ -220,9 +255,9 @@ def drawOneColor(obj, color, startLed = 0, endLed = None):
 # Compute breath value 0..100
 # Cycles at BREATH_SPEED (radians per second)
 #  pos  1.0  1.5  0.0  0.5  1.0 (time in pi radians)
-#    0    0  100  100  100    0
-#   50    0   50  100   50    0
 #  100    0    0  100    0    0
+#   50    0   50  100   50    0
+#    0    0  100  100  100    0
 # t: time in seconds
 # pos[0]: position offset 0..100
 def breathValue(t, pos):
@@ -243,16 +278,39 @@ def drawPos(obj, pos, color):
     if i != None:
         obj.colors[i] = color
 
-# Return LED number based on position 0..360
-# This is specific to my installation of two 21 LED strips
-def mapPosToLed(pos):
+# Convert postion 0..360 to virtual LED number
+# LED0     0 ..   6 (exclusive)
+# LED1     6 ..  12
+# LED59  354 .. 360
+def mapPosToVLed(pos):
     pos %= 360
-    num = None
-    if pos <= 120:
-        num = int(pos / 6)
-    elif (pos >= 180) and (pos <= 300):
-        num = int(pos / 6) - 9
-    return num
+    vLed = int(pos / 6)
+    return vLed
+
+# Convert virtual LED to physical LED number
+# This is specific to my installation of two 21 LED strips
+def mapVLedToLed(vLed):
+    led = None
+    if vLed <= 20:
+        led = vLed
+    elif (vLed >= 30) and (vLed <= 50):
+        led = vLed - 9
+    return led
+
+def mapPosToLed(pos):
+    return mapVLedToLed(mapPosToVLed(pos))
+
+def drawSpot(obj, pos, hue, sat, val, size = 6):
+    pos = (pos - size / 2) % 360
+    while size > 0:
+        vLed = mapPosToVLed(pos)
+        len = min(6.0 * vLed + 6 - pos, size)
+        scale = len / 6
+        i = mapVLedToLed(vLed)
+        if i != None:
+            obj.colors[i] = RGBColor.fromHSV(hue, sat, val * scale)
+        pos = (pos + len) % 360
+        size -= len
 
 frames = 0
 startTime = None

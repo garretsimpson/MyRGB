@@ -33,6 +33,14 @@ Project: https://gitlab.com/FatCatX/myrgb
     zone[1] D_LED2 Top, leds: 42
     zone[2] Motherboard, leds: 8
 
+## Effects
+
+- Random - Draw a random color on a random LED of a random device.
+- Rainbow - Rotating rainbow colors coordinated on all devices.
+- Breathing - Breathing effect coordinated on all devices.
+- Clock - Display hour, minute, second on the LED strip.
+- Spots - 30 racing spots on the LED strip.  Each spot is a different color, size, and speed.
+
 ## Notes
 
 - Case: Fractal Design Meshify C Black, Dark Tint Tempered Glass Window
