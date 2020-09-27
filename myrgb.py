@@ -169,11 +169,11 @@ def runClock(client):
         
         limitFPS(5)
 
-NUM_SPOTS = 15
-MIN_SPOT_SIZE = 1
-MAX_SPOT_SIZE = 25
-MIN_SPOT_SPEED = -120
-MAX_SPOT_SPEED = 120
+NUM_SPOTS = 6
+MIN_SPOT_SIZE = 3
+MAX_SPOT_SIZE = 60
+MIN_SPOT_SPEED = 200
+MAX_SPOT_SPEED = -200
 def runSpots(client):
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     cpus = client.get_devices_by_type(DeviceType.COOLER)
@@ -185,6 +185,8 @@ def runSpots(client):
         size = random.uniform(MIN_SPOT_SIZE, MAX_SPOT_SIZE)
         hue = 360 * (i / NUM_SPOTS)
         speed = random.uniform(MIN_SPOT_SPEED, MAX_SPOT_SPEED)
+        # ratio = (size - MIN_SPOT_SIZE) / (MAX_SPOT_SIZE - MIN_SPOT_SIZE)
+        # speed = (1 - ratio) * (MAX_SPOT_SPEED - MIN_SPOT_SPEED) + MIN_SPOT_SPEED
         spots[i] = (size, hue, speed)
 
     running = True
@@ -199,18 +201,57 @@ def runSpots(client):
             val = 50
             speed = spots[i][2]
             pos = (speed * t) % 360
-            drawSpot(ledStrip, pos, hue, sat, val, size = size)
+            drawSpot(ledStrip, [pos], hue, sat, val, size = size)
         ledStrip.show()
 
-        # drawOneColor(cpus[0], ledStrip.colors[17], 1, 3)
         drawOneColor(cpus[0], blendColors(ledStrip, 15, 19), 1, 3)
         cpus[0].show()
         
         for i in range(len(rams[0].colors)):
-            rams[0].colors[i] = ledStrip.colors[12 - i]
-            rams[1].colors[i] = ledStrip.colors[11 - i]
+            rams[0].colors[i] = ledStrip.colors[13 + i]
+            rams[1].colors[i] = ledStrip.colors[12 - i]
         rams[0].show()
         rams[1].show()
+
+        limitFPS()
+
+#NUM_SPOTS = 15
+#MIN_SPOT_SIZE = 6
+#MAX_SPOT_SIZE = 10
+#MIN_SPOT_SPEED = 1
+#MAX_SPOT_SPEED = 10
+def runSpots2(client):
+    mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
+    ledStrip = mobo[0].zones[1]
+
+    spots = [()] * NUM_SPOTS
+    for i in range(NUM_SPOTS):
+        pos = 360 * random.random()
+        hue = 360 * (i / NUM_SPOTS)
+        speed = random.uniform(MIN_SPOT_SPEED, MAX_SPOT_SPEED)
+        size = random.uniform(MIN_SPOT_SIZE, MAX_SPOT_SIZE)
+        spots[i] = (pos, hue, speed, size)
+
+    running = True
+    while running:
+        t = time.time()
+        
+        drawOneColor(ledStrip, BLACK)
+        for i in range(NUM_SPOTS):
+            pos = spots[i][0]
+            hue = spots[i][1]
+            sat = 100
+            val = 50
+            speed = spots[i][2]
+            size = spots[i][3] * (math.cos(t * speed) + 1) / 2
+            drawSpot(ledStrip, [pos], hue, sat, val, size = size)
+
+            if size < 0.1:
+                pos = 360 * random.random()
+                size = random.uniform(MIN_SPOT_SIZE, MAX_SPOT_SIZE)
+                spots[i] = (pos, hue, speed, size)
+
+        ledStrip.show()
 
         limitFPS()
 
@@ -238,6 +279,7 @@ def rainbowColor(t, pos, value = 100):
     hue = rainbowHue(t, pos)
     sat = 100
     val = min(value, 100)
+    # val = min(value, breathValue(t, [100 * pos[0] / 360]))
     return RGBColor.fromHSV(hue, sat, val)
 
 # Draw a rainbow on device obj startLed...endLed, using t and startPos..endPos
@@ -312,37 +354,43 @@ def mapVLedToLed(vLed):
 def mapPosToLed(pos):
     return mapVLedToLed(mapPosToVLed(pos))
 
+# Draw a spot on the device.
+# Uses the device's color array as a virtual canvas.  Colors are additive.
+# obj: device or zone
+# pos[0]: position in degrees
+# hue, sat, val: color in HSV
+# size: size of spot in degrees
 def drawSpot(obj, pos, hue, sat, val, size = 6):
-    pos = (pos - size / 2) % 360
+    pos = (pos[0] - size / 2) % 360
     while size > 0:
         vLed = mapPosToVLed(pos)
         len = min(6.0 * vLed + 6 - pos, size)
-        scale = len / 6
         i = mapVLedToLed(vLed)
         if i != None:
+            scale = len / 6
             obj.colors[i] = addColors(obj.colors[i], RGBColor.fromHSV(hue, sat, val * scale))
         pos = (pos + len) % 360
         size -= len
 
 def addColors(color1, color2):
     red = min(color1.red + color2.red, 255)
-    green = min(color1.green + color2.green, 255)
-    blue = min(color1.blue + color2.blue, 255)
-    return RGBColor(red, green, blue)
+    grn = min(color1.green + color2.green, 255)
+    blu = min(color1.blue + color2.blue, 255)
+    return RGBColor(red, grn, blu)
 
 # startLed, endLed: inclusive
 def blendColors(obj, startLed, endLed):
     endLed += 1
-    red, green, blue = 0, 0, 0
+    red, grn, blu = 0, 0, 0
     for i in range(startLed, endLed):
         red += obj.colors[i].red
-        green += obj.colors[i].green
-        blue += obj.colors[i].blue
+        grn += obj.colors[i].green
+        blu += obj.colors[i].blue
     len = abs(endLed - startLed)
     red = min(int(red / len), 255)
-    green = min(int(green / len), 255)
-    blue = min(int(blue / len), 255)
-    return RGBColor(red, green, blue)
+    grn = min(int(grn / len), 255)
+    blu = min(int(blu / len), 255)
+    return RGBColor(red, grn, blu)
 
 frames = 0
 startTime = None
