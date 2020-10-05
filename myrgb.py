@@ -15,10 +15,6 @@ from openrgb import OpenRGBClient
 from openrgb.utils import RGBColor, DeviceType
 
 MAX_FPS = 30  # Maximium changes per second
-COLOR_CYCLE = 1 # number of color cycles (positive, can be less than 1)
-COLOR_SPEED = 30  # degrees of hue per second (positive or negative)
-BREATH_SPEED = math.pi / 3  # radians per second
-
 WAIT = 1.0  # Duration in seconds to wait for OpenRGB.  OpenRGB crashes on some calls without it.
 PAUSE_DELTA = 0.015  # Increments of 15ms.
 
@@ -72,6 +68,8 @@ def runRandom(client):
         
         limitFPS()
 
+COLOR_CYCLE = 1 # number of color cycles (positive, can be less than 1)
+COLOR_SPEED = 30  # degrees of hue per second (positive or negative)
 def runRainbow(client):
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     rams = client.get_devices_by_type(DeviceType.DRAM)
@@ -108,6 +106,7 @@ def runRainbow(client):
 
         limitFPS()
 
+BREATH_SPEED = math.pi / 3  # radians per second
 def runBreathing(client):
     MIN_SAT = 50
     MAX_SAT = 100
@@ -158,8 +157,7 @@ def runClock(client):
         hour = t[3]
         minute = t[4]
         second = t[5]
-        if hour > 12:
-            hour -= 12
+        hour %= 12
         BG_COLOR = RGBColor(0, 0, 60)
         drawOneColor(ledStrip, BG_COLOR)
         drawPos(ledStrip, 90 - 30 * hour, MAGENTA)
@@ -170,11 +168,13 @@ def runClock(client):
         limitFPS(5)
 
 NUM_SPOTS = 6
-MIN_SPOT_SIZE = 3
-MAX_SPOT_SIZE = 60
-MIN_SPOT_SPEED = 200
-MAX_SPOT_SPEED = -200
+MIN_SPOT_SIZE = 5
+MAX_SPOT_SIZE = 10
+MIN_SPOT_SPEED = 150
+MAX_SPOT_SPEED = -150
 def runSpots(client):
+    BG_COLOR = BLACK
+
     mobo = client.get_devices_by_type(DeviceType.MOTHERBOARD)
     cpus = client.get_devices_by_type(DeviceType.COOLER)
     rams = client.get_devices_by_type(DeviceType.DRAM)
@@ -193,7 +193,7 @@ def runSpots(client):
     while running:
         t = time.time()
         
-        drawOneColor(ledStrip, BLACK)
+        fade(ledStrip, 0.3, BG_COLOR)
         for i in range(NUM_SPOTS):
             size = spots[i][0]
             hue = spots[i][1]
@@ -308,7 +308,8 @@ def drawOneColor(obj, color, startLed = 0, endLed = None):
 
 # Compute breath value 0..100
 # Cycles at BREATH_SPEED (radians per second)
-#  pos  1.0  1.5  0.0  0.5  1.0 (time in pi radians)
+#  pos  1.0  1.5  0.0  0.5  1.0 (time in pi seconds)
+#  150    0    0   50    0    0
 #  100    0    0  100    0    0
 #   50    0   50  100   50    0
 #    0    0  100  100  100    0
@@ -392,12 +393,23 @@ def blendColors(obj, startLed, endLed):
     blu = min(int(blu / len), 255)
     return RGBColor(red, grn, blu)
 
+# Transition (fade) the color of all LEDs
+# TODO: Use time and a decay rate
+def fade(obj, rate = 0.5, color = BLACK):
+    for i in range(len(obj.colors)):
+        red = int(rate * (color.red - obj.colors[i].red) + obj.colors[i].red)
+        grn = int(rate * (color.green - obj.colors[i].green) + obj.colors[i].green)
+        blu = int(rate * (color.blue - obj.colors[i].blue) + obj.colors[i].blue)
+        obj.colors[i] = RGBColor(red, grn, blu)
+
+fps = MAX_FPS
 frames = 0
 startTime = None
 pause = PAUSE_DELTA  # start with some delay
 # Limit frame rate to about maxFPS
 # TODO: Refactor this as a class
 def limitFPS(maxFPS = MAX_FPS):
+    global fps
     global pause
     global frames
     global startTime
@@ -409,7 +421,7 @@ def limitFPS(maxFPS = MAX_FPS):
         return
     if now > startTime + 1.0:
         fps = frames / (now - startTime)
-        print('FPS: {:.4}, time: {:.4}ms'.format(fps, 1000 / fps))
+        # print('FPS: {:.4}, time: {:.4}ms'.format(fps, 1000 / fps))
         startTime = now
         frames = 0
         diff = (1.0 / maxFPS) - (1.0 / fps)
@@ -417,6 +429,9 @@ def limitFPS(maxFPS = MAX_FPS):
             pause += PAUSE_DELTA
     if pause > 0:
         time.sleep(pause)
+
+def getFPS():
+    return fps
 
 main()
 print('DONE')
